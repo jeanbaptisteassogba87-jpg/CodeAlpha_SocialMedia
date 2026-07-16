@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mon profil - Social App</title>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <span class="icon" data-icon="hub"></span> Social App
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Fil d'actualité</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="profile.html">Mon profil</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" id="logoutBtn">Déconnexion</a></li>
+                    <li class="nav-item">
+                        <button class="theme-toggle-btn ms-2" id="themeToggleBtn" title="Changer de theme">
+                            <span class="icon" data-icon="dark_mode" id="themeIcon"></span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4" style="max-width: 680px;">
+        <div id="profile-content"></div>
+        <div id="user-posts"></div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { isAuthenticated, logout } from './js/auth.js';
+        import { getMyProfile, uploadAvatar } from './js/profile.js';
+        import { loadFeed } from './js/posts.js';
+        import { initTheme, toggleTheme, updateThemeIcon } from './js/theme.js';
+        import { renderIcons } from './js/icons.js';
+
+        const currentTheme = initTheme();
+        const themeIcon = document.getElementById('themeIcon');
+        updateThemeIcon(themeIcon, currentTheme);
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+            updateThemeIcon(themeIcon, toggleTheme());
+        });
+
+        if (!isAuthenticated()) {
+            window.location.href = 'login.html';
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+            window.location.href = 'index.html';
+        });
+
+        function initials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        async function displayProfile() {
+            const profile = await getMyProfile();
+            const container = document.getElementById('profile-content');
+
+            if (!profile) {
+                container.innerHTML = `<div class="alert alert-danger">Impossible de charger le profil</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="profile-header">
+                    <label for="avatarInput" style="cursor:pointer;display:inline-block;">
+                        ${profile.avatar
+                            ? `<img src="${profile.avatar}" class="profile-avatar-large" style="object-fit:cover;">`
+                            : `<div class="profile-avatar-large">${initials(profile.name)}</div>`}
+                    </label>
+                    <input type="file" id="avatarInput" accept="image/*" class="d-none">
+                    <h3>${profile.name}</h3>
+                    <p class="text-secondary">${profile.bio || "Aucune bio pour l'instant"}</p>
+                    <div class="profile-stats">
+                        <div>
+                            <div class="profile-stat-value">${profile.followers_count}</div>
+                            <div class="profile-stat-label">Abonnés</div>
+                        </div>
+                        <div>
+                            <div class="profile-stat-value">${profile.following_count}</div>
+                            <div class="profile-stat-label">Abonnements</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('avatarInput').addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const updated = await uploadAvatar(file);
+                if (updated) await displayProfile();
+            });
+        }
+
+        function timeAgo(dateStr) {
+            const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+            if (diff < 60) return "à l'instant";
+            if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+            return new Date(dateStr).toLocaleDateString();
+        }
+
+        async function displayMyPosts() {
+            const allPosts = await loadFeed();
+            const container = document.getElementById('user-posts');
+
+            container.innerHTML = `<h5 class="mb-3 mt-4">Mes publications</h5>`;
+
+            if (!allPosts || allPosts.length === 0) {
+                container.innerHTML += `
+                    <div class="empty-state">
+                        <span class="icon" data-icon="chat_bubble" style="width:4rem;height:4rem;color:var(--text-light);margin:0 auto 1rem;"></span>
+                        <h3>Aucune publication</h3>
+                        <p>Va sur le fil d'actualité pour publier ton premier post.</p>
+                    </div>`;
+                renderIcons(container);
+                return;
+            }
+
+            container.innerHTML += allPosts.map(post => `
+                <div class="post-card">
+                    <div class="post-content">${post.content}</div>
+                    <div class="post-date">${timeAgo(post.created_at)}</div>
+                    <div class="post-actions">
+                        <span class="post-action-btn">
+                            <span class="icon" data-icon="favorite"></span> ${post.likes_count}
+                        </span>
+                        <span class="post-action-btn">
+                            <span class="icon" data-icon="chat_bubble"></span> ${post.comments.length}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+            renderIcons(container);
+        }
+
+        async function init() {
+            await displayProfile();
+            renderIcons(document.getElementById('profile-content'));
+            await displayMyPosts();
+        }
+
+        init();
+    </script>
+</body>
+</html>

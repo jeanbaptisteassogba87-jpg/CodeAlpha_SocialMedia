@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inscription - Social App</title>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <span class="icon" data-icon="hub"></span> Social App
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Fil d'actualité</a></li>
+                    <li class="nav-item"><a class="nav-link" href="login.html">Connexion</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="register.html">Inscription</a></li>
+                    <li class="nav-item">
+                        <button class="theme-toggle-btn ms-2" id="themeToggleBtn" title="Changer de theme">
+                            <span class="icon" data-icon="dark_mode" id="themeIcon"></span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4 my-md-5 px-3">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-9 col-md-7 col-lg-5">
+                <div class="card auth-card">
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <span class="icon" data-icon="person_add" style="width:2.5rem;height:2.5rem;color:var(--accent);"></span>
+                            <h1 class="h3 mt-2">Créer un compte</h1>
+                            <p class="text-secondary small">Rejoignez la communauté en quelques secondes</p>
+                        </div>
+
+                        <form id="registerForm" novalidate>
+                            <div class="mb-3">
+                                <label for="name" class="form-label fw-semibold">Nom complet</label>
+                                <input type="text" class="form-control" id="name" placeholder="Jean Dupont" required />
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label fw-semibold">Adresse email</label>
+                                <input type="email" class="form-control" id="email" placeholder="exemple@email.com" required />
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label fw-semibold">Mot de passe</label>
+                                <div class="password-wrapper">
+                                    <input type="password" class="form-control" id="password" placeholder="Minimum 4 caractères" required />
+                                    <button type="button" class="password-toggle" data-target="password">
+                                        <span class="icon" data-icon="visibility"></span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label fw-semibold">Confirmer le mot de passe</label>
+                                <div class="password-wrapper">
+                                    <input type="password" class="form-control" id="confirmPassword" required />
+                                    <button type="button" class="password-toggle" data-target="confirmPassword">
+                                        <span class="icon" data-icon="visibility"></span>
+                                    </button>
+                                </div>
+                                <div id="matchHint" class="form-hint"></div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 mt-2" id="registerBtn">
+                                <span class="icon" data-icon="person_add"></span> S'inscrire
+                            </button>
+                        </form>
+
+                        <p class="text-center text-secondary mt-3 mb-0">
+                            Déjà un compte ? <a href="login.html" style="color:var(--accent);font-weight:600;">Se connecter</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="messageModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalTitle">Message</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="messageModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { register } from './js/auth.js';
+        import { initTheme, toggleTheme, updateThemeIcon } from './js/theme.js';
+        import { renderIcons } from './js/icons.js';
+
+        const currentTheme = initTheme();
+        const themeIcon = document.getElementById('themeIcon');
+        updateThemeIcon(themeIcon, currentTheme);
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+            updateThemeIcon(themeIcon, toggleTheme());
+        });
+
+        document.querySelectorAll('.password-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById(btn.dataset.target);
+                const iconSpan = btn.querySelector('.icon');
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    iconSpan.dataset.icon = 'visibility_off';
+                } else {
+                    input.type = 'password';
+                    iconSpan.dataset.icon = 'visibility';
+                }
+                renderIcons(btn);
+            });
+        });
+
+        const pwd = document.getElementById('password');
+        const confirmPwd = document.getElementById('confirmPassword');
+        const matchHint = document.getElementById('matchHint');
+
+        function checkMatch() {
+            if (!confirmPwd.value) {
+                matchHint.textContent = '';
+                matchHint.className = 'form-hint';
+                return;
+            }
+            if (pwd.value === confirmPwd.value) {
+                matchHint.textContent = 'Les mots de passe correspondent';
+                matchHint.className = 'form-hint text-success';
+            } else {
+                matchHint.textContent = 'Les mots de passe ne correspondent pas';
+                matchHint.className = 'form-hint text-danger';
+            }
+        }
+        pwd.addEventListener('input', checkMatch);
+        confirmPwd.addEventListener('input', checkMatch);
+
+        function showModal(title, message, isSuccess = true) {
+            document.getElementById('messageModalTitle').textContent = title;
+            document.getElementById('messageModalBody').innerHTML = `
+                <div class="alert ${isSuccess ? 'alert-success' : 'alert-danger'} mb-0">${message}</div>
+            `;
+            new bootstrap.Modal(document.getElementById('messageModal')).show();
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!name || !email || !password || !confirmPassword) {
+                showModal('Champs manquants', 'Veuillez remplir tous les champs.', false);
+                return;
+            }
+            if (!email.includes('@') || !email.includes('.')) {
+                showModal('Email invalide', 'Veuillez entrer une adresse email valide.', false);
+                return;
+            }
+            if (password.length < 4) {
+                showModal('Mot de passe trop court', 'Le mot de passe doit contenir au moins 4 caractères.', false);
+                return;
+            }
+            if (password !== confirmPassword) {
+                showModal('Mots de passe différents', 'Les mots de passe ne correspondent pas.', false);
+                return;
+            }
+
+            const btn = document.getElementById('registerBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Création...';
+
+            try {
+                const result = await register(name, email, password);
+                btn.disabled = false;
+                btn.innerHTML = '<span class="icon" data-icon="person_add"></span> S\'inscrire';
+                renderIcons(btn);
+
+                if (result === "Compte créé avec succès") {
+                    showModal('Inscription réussie', 'Votre compte a été créé. Vous pouvez maintenant vous connecter.', true);
+                    document.getElementById('registerForm').reset();
+                    matchHint.textContent = '';
+                    setTimeout(() => window.location.href = 'login.html', 1800);
+                } else {
+                    showModal('Erreur', typeof result === 'string' ? result : 'Une erreur est survenue.', false);
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="icon" data-icon="person_add"></span> S\'inscrire';
+                renderIcons(btn);
+                showModal('Erreur réseau', 'Impossible de contacter le serveur.', false);
+            }
+        });
+
+        renderIcons();
+    </script>
+</body>
+</html>

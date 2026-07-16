@@ -33,4 +33,16 @@ async function unfollowUser(userId) {
     return response.ok;
 }
 
-export { getMyProfile, getUserProfile, followUser, unfollowUser };
+async function uploadAvatar(file) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await fetch(`${API_URL}me/avatar/`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+        body: formData
+    });
+    if (!response.ok) return null;
+    return await response.json();
+}
+
+export { getMyProfile, getUserProfile, followUser, unfollowUser, uploadAvatar };
