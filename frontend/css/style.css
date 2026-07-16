@@ -358,3 +358,28 @@ a { text-decoration:none; }
 @media (max-width: 576px) {
     .auth-card .card-body { padding: 1.4rem; }
 }
+
+.btn-follow {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.3rem 0.9rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+    transition: all 0.2s ease;
+}
+.btn-follow:hover { background: var(--accent-dark); }
+.btn-follow.following {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1.5px solid var(--border-strong);
+}
+.btn-follow.following:hover { border-color: var(--danger); color: var(--danger); }
+.post-header { position: relative; }
+.author-link { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; color: inherit; flex: 1; }
+
+
+

@@ -76,8 +76,11 @@
     <script type="module">
         import { isAuthenticated, logout } from './js/auth.js';
         import { loadFeed, createPost, likePost, unlikePost, addComment } from './js/posts.js';
+        import { getMyProfile, followUser, unfollowUser } from './js/profile.js';
         import { initTheme, toggleTheme, updateThemeIcon } from './js/theme.js';
         import { renderIcons } from './js/icons.js';
+
+        let myProfile = null;
 
         const currentTheme = initTheme();
         const themeIcon = document.getElementById('themeIcon');
@@ -114,19 +117,29 @@
             return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
         }
 
-        function renderPost(post) {
+        function renderPost(post, myId) {
             const avatarHtml = post.author_avatar
                 ? `<img src="${post.author_avatar}" class="post-avatar" style="object-fit:cover;">`
                 : `<div class="post-avatar">${initials(post.author_name)}</div>`;
 
+            const isOwnPost = post.author === myId;
+            const followBtnHtml = isOwnPost ? '' : `
+                <button class="btn-follow ${post.is_following_author ? 'following' : ''}" data-author-id="${post.author}">
+                    ${post.is_following_author ? 'Abonné' : 'Suivre'}
+                </button>
+            `;
+
             return `
                 <div class="post-card" data-post-id="${post.id}">
                     <div class="post-header">
-                        ${avatarHtml}
-                        <div>
-                            <div class="post-author">${post.author_name}</div>
-                            <div class="post-date">${timeAgo(post.created_at)}</div>
-                        </div>
+                        <a href="profile.html?id=${post.author}" class="author-link">
+                            ${avatarHtml}
+                            <div>
+                                <div class="post-author">${post.author_name}</div>
+                                <div class="post-date">${timeAgo(post.created_at)}</div>
+                            </div>
+                        </a>
+                        ${followBtnHtml}
                     </div>
                     <div class="post-content">${post.content}</div>
                     <div class="post-actions">
@@ -201,6 +214,23 @@
                     }
                 });
             });
+
+            document.querySelectorAll('.btn-follow').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const authorId = btn.dataset.authorId;
+                    const isFollowing = btn.classList.contains('following');
+
+                    if (isFollowing) {
+                        await unfollowUser(authorId);
+                        btn.classList.remove('following');
+                        btn.textContent = 'Suivre';
+                    } else {
+                        await followUser(authorId);
+                        btn.classList.add('following');
+                        btn.textContent = 'Abonné';
+                    }
+                });
+            });
         }
 
         async function refreshFeed() {
@@ -216,7 +246,7 @@
                 return;
             }
             noPosts.classList.add('d-none');
-            container.innerHTML = posts.map(renderPost).join('');
+            container.innerHTML = posts.map(p => renderPost(p, myProfile ? myProfile.id : null)).join('');
             renderIcons(container);
             attachPostEvents();
         }
@@ -242,6 +272,7 @@
             updateAuthUI();
             renderIcons();
             if (isAuthenticated()) {
+                myProfile = await getMyProfile();
                 await refreshFeed();
             }
         }

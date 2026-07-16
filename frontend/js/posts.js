@@ -14,6 +14,18 @@ async function loadFeed() {
     }
 }
 
+async function getUserPosts(userId) {
+    try {
+        const response = await fetch(`${API_URL}posts/?author=${userId}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!response.ok) return [];
+        return await response.json();
+    } catch (error) {
+        return [];
+    }
+}
+
 async function createPost(content) {
     try {
         const response = await fetch(`${API_URL}posts/`, {
@@ -61,4 +73,4 @@ async function addComment(postId, content) {
     return response.ok;
 }
 
-export { loadFeed, createPost, likePost, unlikePost, addComment };
+export { loadFeed, getUserPosts, createPost, likePost, unlikePost, addComment };
