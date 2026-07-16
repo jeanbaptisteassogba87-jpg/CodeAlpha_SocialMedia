@@ -4,12 +4,17 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import Post, Comment, Like
 from .serializers import PostSerializer, CommentSerializer
-from follows.models import Follow
 
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        qs = Post.objects.all().order_by('-created_at')
+        author_id = self.request.query_params.get('author')
+        if author_id:
+            qs = qs.filter(author_id=author_id)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -53,8 +58,7 @@ def unlike_post(request, post_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def feed(request):
-    """Posts des utilisateurs suivis + ses propres posts"""
-    following_ids = Follow.objects.filter(follower=request.user).values_list('following_id', flat=True)
-    posts = Post.objects.filter(author_id__in=list(following_ids) + [request.user.id]).order_by('-created_at')
+    """Fil public : tous les posts de tous les utilisateurs, plus recents en premier."""
+    posts = Post.objects.all().order_by('-created_at')
     serializer = PostSerializer(posts, many=True, context={'request': request})
     return Response(serializer.data)
