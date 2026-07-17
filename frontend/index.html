@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fil d'actualité - Social App</title>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <span class="icon" data-icon="hub"></span> Social App
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link active" href="index.html">Fil d'actualité</a></li>
+                    <li class="nav-item" id="profile-link"><a class="nav-link" href="profile.html">Mon profil</a></li>
+                    <li class="nav-item" id="login-link"><a class="nav-link" href="login.html">Connexion</a></li>
+                    <li class="nav-item" id="register-link"><a class="nav-link" href="register.html">Inscription</a></li>
+                    <li class="nav-item" id="logout-link" style="display:none;"><a class="nav-link" href="#" id="logoutBtn">Déconnexion</a></li>
+                    <li class="nav-item">
+                        <button class="theme-toggle-btn ms-2" id="themeToggleBtn" title="Changer de theme">
+                            <span class="icon" data-icon="dark_mode" id="themeIcon"></span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-4" style="max-width: 680px;">
+        <div id="auth-required" class="empty-state d-none">
+            <span class="icon" data-icon="lock" style="width:4rem;height:4rem;color:var(--text-light);margin:0 auto 1rem;"></span>
+            <h3>Connexion requise</h3>
+            <p>Connecte-toi pour voir et publier des posts.</p>
+            <a href="login.html" class="btn btn-primary mt-2">Se connecter</a>
+        </div>
+
+        <div id="feed-content" class="d-none">
+            <div class="create-post-box">
+                <textarea id="postContent" placeholder="Quoi de neuf ?"></textarea>
+                <div class="create-post-footer">
+                    <button class="btn btn-primary" id="publishBtn">
+                        <span class="icon" data-icon="send"></span> Publier
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading-state" class="text-center py-4">
+                <div class="spinner-border"></div>
+            </div>
+
+            <div id="posts-list"></div>
+
+            <div id="no-posts" class="empty-state d-none">
+                <span class="icon" data-icon="chat_bubble" style="width:4rem;height:4rem;color:var(--text-light);margin:0 auto 1rem;"></span>
+                <h3>Aucun post pour l'instant</h3>
+                <p>Suis des utilisateurs ou publie ton premier post !</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        import { isAuthenticated, logout } from './js/auth.js';
+        import { loadFeed, createPost, likePost, unlikePost, addComment } from './js/posts.js';
+        import { getMyProfile, followUser, unfollowUser } from './js/profile.js';
+        import { initTheme, toggleTheme, updateThemeIcon } from './js/theme.js';
+        import { renderIcons } from './js/icons.js';
+
+        let myProfile = null;
+
+        const currentTheme = initTheme();
+        const themeIcon = document.getElementById('themeIcon');
+        updateThemeIcon(themeIcon, currentTheme);
+        document.getElementById('themeToggleBtn').addEventListener('click', () => {
+            updateThemeIcon(themeIcon, toggleTheme());
+        });
+
+        function updateAuthUI() {
+            const isAuth = isAuthenticated();
+            document.getElementById('login-link').style.display = isAuth ? 'none' : 'block';
+            document.getElementById('register-link').style.display = isAuth ? 'none' : 'block';
+            document.getElementById('profile-link').style.display = isAuth ? 'block' : 'none';
+            document.getElementById('logout-link').style.display = isAuth ? 'block' : 'none';
+            document.getElementById('auth-required').classList.toggle('d-none', isAuth);
+            document.getElementById('feed-content').classList.toggle('d-none', !isAuth);
+        }
+
+        document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+            window.location.href = 'index.html';
+        });
+
+        function timeAgo(dateStr) {
+            const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+            if (diff < 60) return "à l'instant";
+            if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`;
+            if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`;
+            return new Date(dateStr).toLocaleDateString();
+        }
+
+        function initials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function renderPost(post, myId) {
+            const avatarHtml = post.author_avatar
+                ? `<img src="${post.author_avatar}" class="post-avatar" style="object-fit:cover;">`
+                : `<div class="post-avatar">${initials(post.author_name)}</div>`;
+
+            const isOwnPost = post.author === myId;
+            const followBtnHtml = isOwnPost ? '' : `
+                <button class="btn-follow ${post.is_following_author ? 'following' : ''}" data-author-id="${post.author}">
+                    ${post.is_following_author ? 'Abonné' : 'Suivre'}
+                </button>
+            `;
+
+            return `
+                <div class="post-card" data-post-id="${post.id}">
+                    <div class="post-header">
+                        <a href="profile.html?id=${post.author}" class="author-link">
+                            ${avatarHtml}
+                            <div>
+                                <div class="post-author">${post.author_name}</div>
+                                <div class="post-date">${timeAgo(post.created_at)}</div>
+                            </div>
+                        </a>
+                        ${followBtnHtml}
+                    </div>
+                    <div class="post-content">${post.content}</div>
+                    <div class="post-actions">
+                        <button class="post-action-btn like-btn ${post.is_liked ? 'liked' : ''}" data-id="${post.id}">
+                            <span class="icon" data-icon="${post.is_liked ? 'favorite_filled' : 'favorite'}"></span>
+                            <span class="likes-count">${post.likes_count}</span>
+                        </button>
+                        <button class="post-action-btn toggle-comments-btn" data-id="${post.id}">
+                            <span class="icon" data-icon="chat_bubble"></span>
+                            <span>${post.comments.length}</span>
+                        </button>
+                    </div>
+                    <div class="comments-section d-none" id="comments-${post.id}">
+                        ${post.comments.map(c => `
+                            <div class="comment-item">
+                                <span class="comment-author">${c.author_name}</span> ${c.content}
+                            </div>
+                        `).join('')}
+                        <div class="comment-form">
+                            <input type="text" placeholder="Ajouter un commentaire..." class="comment-input" data-id="${post.id}">
+                            <button class="submit-comment-btn" data-id="${post.id}">
+                                <span class="icon" data-icon="send"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function attachPostEvents() {
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    const isLiked = btn.classList.contains('liked');
+                    const countSpan = btn.querySelector('.likes-count');
+                    const iconSpan = btn.querySelector('.icon');
+                    let count = parseInt(countSpan.textContent);
+
+                    if (isLiked) {
+                        await unlikePost(id);
+                        btn.classList.remove('liked');
+                        iconSpan.dataset.icon = 'favorite';
+                        countSpan.textContent = count - 1;
+                    } else {
+                        await likePost(id);
+                        btn.classList.add('liked');
+                        iconSpan.dataset.icon = 'favorite_filled';
+                        countSpan.textContent = count + 1;
+                    }
+                    renderIcons(btn);
+                });
+            });
+
+            document.querySelectorAll('.toggle-comments-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const section = document.getElementById(`comments-${btn.dataset.id}`);
+                    section.classList.toggle('d-none');
+                });
+            });
+
+            document.querySelectorAll('.submit-comment-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.dataset.id;
+                    const input = document.querySelector(`.comment-input[data-id="${id}"]`);
+                    const content = input.value.trim();
+                    if (!content) return;
+
+                    const success = await addComment(id, content);
+                    if (success) {
+                        input.value = '';
+                        await refreshFeed();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.btn-follow').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const authorId = btn.dataset.authorId;
+                    const isFollowing = btn.classList.contains('following');
+
+                    if (isFollowing) {
+                        await unfollowUser(authorId);
+                        btn.classList.remove('following');
+                        btn.textContent = 'Suivre';
+                    } else {
+                        await followUser(authorId);
+                        btn.classList.add('following');
+                        btn.textContent = 'Abonné';
+                    }
+                });
+            });
+        }
+
+        async function refreshFeed() {
+            const posts = await loadFeed();
+            const container = document.getElementById('posts-list');
+            const noPosts = document.getElementById('no-posts');
+
+            document.getElementById('loading-state').classList.add('d-none');
+
+            if (!posts || posts.length === 0) {
+                container.innerHTML = '';
+                noPosts.classList.remove('d-none');
+                return;
+            }
+            noPosts.classList.add('d-none');
+            container.innerHTML = posts.map(p => renderPost(p, myProfile ? myProfile.id : null)).join('');
+            renderIcons(container);
+            attachPostEvents();
+        }
+
+        document.getElementById('publishBtn').addEventListener('click', async () => {
+            const textarea = document.getElementById('postContent');
+            const content = textarea.value.trim();
+            if (!content) return;
+
+            const btn = document.getElementById('publishBtn');
+            btn.disabled = true;
+
+            const result = await createPost(content);
+            btn.disabled = false;
+
+            if (result.success) {
+                textarea.value = '';
+                await refreshFeed();
+            }
+        });
+
+        async function init() {
+            updateAuthUI();
+            renderIcons();
+            if (isAuthenticated()) {
+                myProfile = await getMyProfile();
+                await refreshFeed();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
